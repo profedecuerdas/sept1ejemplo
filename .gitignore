@@ -1,0 +1,63 @@
+# Ignorar configuraciones de Android Studio
+.idea/
+*.iml
+*.hprof
+
+# Ignorar configuraciones locales de Gradle
+.gradle/
+local.properties
+**/gradle.properties
+
+# Ignorar archivos de compilación y temporales
+/build/
+**/build/
+**/tmp/
+**/out/
+**/captures/
+*.class
+*.apk
+*.ap_
+*.dex
+*.jar
+
+# Ignorar archivos de configuración de compilación de Android
+.settings/
+.gradle/
+**/*.log
+**/*.bin
+**/*.lock
+
+# Ignorar archivos generados por Android
+**/intermediates/
+**/generated/
+**/annotation_processor_list/
+**/compressed_assets/
+**/merged_manifests/
+**/merged_res_blame_folder/
+**/merged_res/
+**/dex/
+**/project_dex_archive/
+**/apk/
+
+# Ignorar configuraciones de KAPT (compilación de Kotlin)
+**/kapt3/
+**/kotlin/
+
+# Ignorar archivos relacionados con ProGuard
+proguard-rules.pro
+
+# Ignorar archivos de empaquetado y registros de compilación
+*.zip
+*.tar.gz
+*.log
+
+# Archivos del sistema
+.DS_Store
+.directory
+Thumbs.db
+
+# Ignorar archivos SWAP y temporales del editor
+*.swp
+*.tmp
+*.temp
+

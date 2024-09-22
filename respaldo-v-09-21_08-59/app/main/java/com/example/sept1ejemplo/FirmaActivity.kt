@@ -1,0 +1,101 @@
+package com.example.sept1ejemplo
+
+import android.content.Intent
+import android.graphics.Bitmap
+import android.os.Bundle
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.database.RegistroEntity
+import com.example.sept1ejemplo.databinding.ActivityFirmaBinding
+import com.example.sept1ejemplo.util.PdfGenerator
+import com.github.gcacace.signaturepad.views.SignaturePad
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.*
+import android.util.Base64
+import java.io.ByteArrayOutputStream
+
+class FirmaActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityFirmaBinding
+    private lateinit var database: AppDatabase
+    private lateinit var signatureBitmap: Bitmap
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityFirmaBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        database = AppDatabase.getDatabase(this)
+
+        val nombre = intent.getStringExtra("nombre") ?: ""
+        val nota = intent.getStringExtra("nota") ?: ""
+
+        // Configurar el listener para el SignaturePad
+        binding.signaturePad.setOnSignedListener(object : SignaturePad.OnSignedListener {
+            override fun onSigned() {
+                // Habilitar el botón Aceptar cuando hay una firma
+                binding.btnAceptar.isEnabled = true
+                signatureBitmap = binding.signaturePad.signatureBitmap
+            }
+
+            override fun onStartSigning() {
+                // Opcional: manejar cuando se comienza a firmar
+            }
+
+            override fun onClear() {
+                // Deshabilitar el botón Aceptar si la firma se borra
+                binding.btnAceptar.isEnabled = false
+            }
+        })
+
+        // Botón Limpiar
+        binding.btnLimpiar.setOnClickListener {
+            binding.signaturePad.clear()
+        }
+
+        // Botón Aceptar
+        binding.btnAceptar.setOnClickListener {
+            if (binding.signaturePad.isEmpty) {
+                Toast.makeText(this, "Por favor, firme antes de aceptar", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Guardar la firma en la base de datos y generar PDF
+            val stream = ByteArrayOutputStream()
+            signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            val signatureBytes = stream.toByteArray()
+            val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
+            val timestamp = System.currentTimeMillis()
+            val registro = RegistroEntity(
+                nombresApellidos = nombre,
+                nota = nota,
+                timestamp = timestamp,
+                firmaBase64 = signatureBase64
+            )
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                // Insertar el registro en la base de datos y obtener el ID generado
+                val registroId = database.registroDao().insertRegistro(registro)
+
+                // Ahora podemos generar el PDF con el ID correcto
+                val updatedRegistro = registro.copy(id = registroId.toInt())  // Actualizar el ID
+                val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
+
+                launch(Dispatchers.Main) {
+                    // Pasar el ID del registro a ActivityDos
+                    val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
+                        putExtra("NOMBRES_APELLIDOS", nombre)
+                        putExtra("NOTA", nota)
+                        putExtra("TIMESTAMP", timestamp)
+                        putExtra("REGISTRO_ID", registroId.toInt()) // Pasar el ID del registro
+                    }
+                    startActivity(intent)
+                    finish()
+                }
+            }
+        }
+    }
+}

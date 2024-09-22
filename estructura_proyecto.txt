@@ -1,0 +1,757 @@
+Archivo: ./app/src/main/AndroidManifest.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Permisos requeridos -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Sept1ejemplo">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".FirmaActivity" />
+        <activity android:name=".RegistrosActivity" />
+        <activity android:name=".ActivityDos" />
+        <activity android:name=".ActivityTres" />
+    </application>
+</manifest>
+Archivo: ./build.gradle.kts
+-----------------------------------------------------
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.2.0-rc01")  // Usa la versión más reciente estable
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20")  // Actualiza a la versión compatible con tu AGP  }
+}
+
+}
+Archivo: ./app/build.gradle.kts
+-----------------------------------------------------
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt")  // Si estás usando Kotlin Annotation Processing
+}
+
+android {
+    namespace = "com.example.sept1ejemplo"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.example.sept1ejemplo"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    buildFeatures {
+        viewBinding = true
+    }
+}
+
+dependencies {
+    val room_version = "2.5.2"
+
+    implementation("com.github.gcacace:signature-pad:1.3.1")
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
+    implementation("com.itextpdf:itext7-core:7.2.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.9.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+
+    // Agrega aquí otras dependencias que puedas necesitar
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/MainActivity.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo
+
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.widget.Button
+import android.widget.EditText
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.appbar.MaterialToolbar
+import com.example.sept1ejemplo.FirmaActivity
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var editTextNombre: EditText
+    private lateinit var editTextNota: EditText
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        Log.d("MainActivity", "onCreate: Actividad principal iniciada")
+        val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
+        // Remove this line: setSupportActionBar(toolbar)
+
+        // Instead, set the title directly on the toolbar
+        toolbar.title = getString(R.string.app_name)
+
+        editTextNombre = findViewById(R.id.editTextNombre)
+        editTextNota = findViewById(R.id.editTextNota)
+
+        val btnLimpiar: Button = findViewById(R.id.btnLimpiar)
+        val btnFirmar: Button = findViewById(R.id.btnFirmar)
+
+        btnLimpiar.setOnClickListener {
+            Log.d("MainActivity", "btnLimpiar: Limpiando campos")
+            editTextNombre.text.clear()
+            editTextNota.text.clear()
+        }
+
+        btnFirmar.setOnClickListener {
+            Log.d("MainActivity", "btnFirmar: Iniciando FirmaActivity")
+            val intent = Intent(this, FirmaActivity::class.java)
+            intent.putExtra("nombre", editTextNombre.text.toString())
+            intent.putExtra("nota", editTextNota.text.toString())
+            startActivity(intent)
+        }
+    }
+}
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/ActivityDos.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.example.sept1ejemplo.databinding.ActivityDosBinding
+import java.text.SimpleDateFormat
+import java.util.*
+
+class ActivityDos : AppCompatActivity() {
+
+    private lateinit var binding: ActivityDosBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityDosBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Obtener los datos del Intent
+        val nombresApellidos = intent.getStringExtra("NOMBRES_APELLIDOS") ?: ""
+        val nota = intent.getStringExtra("NOTA") ?: ""
+        val timestamp = intent.getLongExtra("TIMESTAMP", 0L)
+        val registroId = intent.getIntExtra("REGISTRO_ID", -1) // Recibir el ID del registro
+
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+        val date = Date(timestamp)
+
+        // Mostrar el mensaje con el ID del registro
+        binding.textViewMensaje.text = "Se registró correctamente en la base de datos, y se creó el documento .pdf del registro correspondiente (Registro #$registroId)."
+
+        binding.buttonVolverMain.setOnClickListener {
+            finish()
+        }
+
+        binding.buttonIrTres.setOnClickListener {
+            startActivity(Intent(this, ActivityTres::class.java))
+        }
+    }
+}
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/ActivityTres.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.databinding.ActivityTresBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
+
+class ActivityTres : AppCompatActivity() {
+
+    private lateinit var binding: ActivityTresBinding
+    private lateinit var database: AppDatabase
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityTresBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        database = AppDatabase.getDatabase(this)
+
+        binding.buttonVolverMain.setOnClickListener {
+            finish()
+        }
+
+        binding.buttonCerrar.setOnClickListener {
+            finishAffinity()
+        }
+
+        // Cargar y mostrar los registros con sus índices
+        cargarRegistros()
+    }
+
+    private fun cargarRegistros() {
+        lifecycleScope.launch {
+            val registros = withContext(Dispatchers.IO) {
+                database.registroDao().getAllRegistros()  // Obtener los registros de la base de datos
+            }
+            val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+
+            // Construir la cadena de texto que muestra cada registro con su ID (índice)
+            val registrosText = registros.joinToString("\n\n") { registro ->
+                "Registro #${registro.id}\n" +  // Mostrar el ID del registro
+                        "Nombres y Apellidos: ${registro.nombresApellidos}\n" +
+                        "Nota: ${registro.nota}\n" +
+                        "Fecha: ${dateFormat.format(Date(registro.timestamp))}"
+            }
+
+            // Mostrar el resultado en el TextView
+            binding.textViewRegistros.text = registrosText
+        }
+    }
+}
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/FirmaActivity.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo
+
+import android.content.Intent
+import android.graphics.Bitmap
+import android.os.Bundle
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.database.RegistroEntity
+import com.example.sept1ejemplo.databinding.ActivityFirmaBinding
+import com.example.sept1ejemplo.util.PdfGenerator
+import com.github.gcacace.signaturepad.views.SignaturePad
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.*
+import android.util.Base64
+import java.io.ByteArrayOutputStream
+
+class FirmaActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityFirmaBinding
+    private lateinit var database: AppDatabase
+    private lateinit var signatureBitmap: Bitmap
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityFirmaBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        database = AppDatabase.getDatabase(this)
+
+        val nombre = intent.getStringExtra("nombre") ?: ""
+        val nota = intent.getStringExtra("nota") ?: ""
+
+        // Configurar el listener para el SignaturePad
+        binding.signaturePad.setOnSignedListener(object : SignaturePad.OnSignedListener {
+            override fun onSigned() {
+                // Habilitar el botón Aceptar cuando hay una firma
+                binding.btnAceptar.isEnabled = true
+                signatureBitmap = binding.signaturePad.signatureBitmap
+            }
+
+            override fun onStartSigning() {
+                // Opcional: manejar cuando se comienza a firmar
+            }
+
+            override fun onClear() {
+                // Deshabilitar el botón Aceptar si la firma se borra
+                binding.btnAceptar.isEnabled = false
+            }
+        })
+
+        // Botón Limpiar
+        binding.btnLimpiar.setOnClickListener {
+            binding.signaturePad.clear()
+        }
+
+        // Botón Aceptar
+        binding.btnAceptar.setOnClickListener {
+            if (binding.signaturePad.isEmpty) {
+                Toast.makeText(this, "Por favor, firme antes de aceptar", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Guardar la firma en la base de datos y generar PDF
+            val stream = ByteArrayOutputStream()
+            signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            val signatureBytes = stream.toByteArray()
+            val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
+            val timestamp = System.currentTimeMillis()
+            val registro = RegistroEntity(
+                nombresApellidos = nombre,
+                nota = nota,
+                timestamp = timestamp,
+                firmaBase64 = signatureBase64
+            )
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                // Insertar el registro en la base de datos y obtener el ID generado
+                val registroId = database.registroDao().insertRegistro(registro)
+
+                // Ahora podemos generar el PDF con el ID correcto
+                val updatedRegistro = registro.copy(id = registroId.toInt())  // Actualizar el ID
+                val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
+
+                launch(Dispatchers.Main) {
+                    // Pasar el ID del registro a ActivityDos
+                    val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
+                        putExtra("NOMBRES_APELLIDOS", nombre)
+                        putExtra("NOTA", nota)
+                        putExtra("TIMESTAMP", timestamp)
+                        putExtra("REGISTRO_ID", registroId.toInt()) // Pasar el ID del registro
+                    }
+                    startActivity(intent)
+                    finish()
+                }
+            }
+        }
+    }
+}
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/AppDatabase.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.database
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Database(entities = [RegistroEntity::class], version = 2, exportSchema = false)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun registroDao(): RegistroDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        // Define the migration from version 1 to 2
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the 'firmaBase64' column to the 'registros' table
+                database.execSQL("ALTER TABLE registros ADD COLUMN firmaBase64 TEXT")
+            }
+        }
+
+        fun getDatabase(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "app_database"
+                )
+                    .addMigrations(MIGRATION_1_2) // Add migration strategy
+                    .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+}
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/RegistroDao.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.database
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+
+@Dao
+interface RegistroDao {
+    @Query("SELECT * FROM registros ORDER BY timestamp DESC")
+    suspend fun getAllRegistros(): List<RegistroEntity>
+
+    @Insert
+    suspend fun insertRegistro(registro: RegistroEntity): Long // Devuelve el ID generado
+}
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/RegistroEntity.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.database
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "registros")
+data class RegistroEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val nombresApellidos: String,
+    val nota: String,
+    val timestamp: Long,
+    val firmaBase64: String? = null,
+)
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/util/PdfGenerator.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.util
+
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.os.Environment
+import com.example.sept1ejemplo.database.RegistroEntity
+import com.itextpdf.kernel.pdf.PdfDocument
+import com.itextpdf.kernel.pdf.PdfWriter
+import com.itextpdf.layout.Document
+import com.itextpdf.layout.element.Paragraph
+import com.itextpdf.layout.element.Image
+import com.itextpdf.io.image.ImageDataFactory
+import android.graphics.Bitmap
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+
+object PdfGenerator {
+    fun generatePdf(context: Context, registro: RegistroEntity, signatureBitmap: Bitmap): File {
+        val fileName = "registro${registro.timestamp}.pdf"
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val file = File(downloadsDir, fileName)
+
+        PdfWriter(file).use { writer ->
+            PdfDocument(writer).use { pdf ->
+                Document(pdf).use { document ->
+
+                    // Cargar la imagen del membrete desde drawable usando el contexto
+                    val membreteBitmap = BitmapFactory.decodeResource(context.resources, context.resources.getIdentifier("membrete", "drawable", context.packageName))
+                    val streamMembrete = ByteArrayOutputStream()
+                    membreteBitmap.compress(Bitmap.CompressFormat.PNG, 100, streamMembrete)
+                    val membreteBytes = streamMembrete.toByteArray()
+
+                    // Crear una imagen iText a partir de los datos del bitmap del membrete
+                    val membreteImage = Image(ImageDataFactory.create(membreteBytes))
+                    membreteImage.scaleToFit(500f, 150f) // Ajustar el tamaño del membrete según tus necesidades
+
+                    // Añadir el membrete al documento en la parte superior
+                    document.add(membreteImage)
+
+                    // Añadir el texto "Registro #<id>"
+                    document.add(Paragraph("Registro #${registro.id}"))
+
+                    // Añadir nombres y apellidos
+                    document.add(Paragraph("Nombres y Apellidos: ${registro.nombresApellidos}"))
+
+                    // Añadir nota
+                    document.add(Paragraph("Nota: ${registro.nota}"))
+
+                    // Convertir la firma Bitmap a un arreglo de bytes
+                    val streamFirma = ByteArrayOutputStream()
+                    signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, streamFirma)
+                    val signatureBytes = streamFirma.toByteArray()
+
+                    // Crear imagen a partir del Bitmap de la firma
+                    val signatureImage = Image(ImageDataFactory.create(signatureBytes))
+                    signatureImage.scaleToFit(100f, 100f)
+
+                    // Añadir la firma al documento
+                    document.add(signatureImage)
+
+                    // Añadir la fecha y hora debajo de la firma
+                    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+                    val date = Date(registro.timestamp)
+                    document.add(Paragraph("Fecha y Hora: ${dateFormat.format(date)}"))
+                }
+            }
+        }
+
+        return file
+    }
+}
+
+Archivo: ./app/src/main/res/layout/activity_main.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@android:color/white" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <EditText
+                android:id="@+id/editTextNombre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Nombre completo" />
+
+            <EditText
+                android:id="@+id/editTextNota"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Nota"
+                android:layout_marginTop="16dp" />
+
+            <Button
+                android:id="@+id/btnLimpiar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Limpiar"
+                android:layout_marginTop="16dp" />
+
+            <Button
+                android:id="@+id/btnFirmar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Firmar"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+Archivo: ./app/src/main/res/layout/activity_dos.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ActivityDos">
+
+    <TextView
+        android:id="@+id/textViewMensaje"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Se registró correctamente en la base de datos, y se creó el documento .pdf del registro correspondiente."
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="16dp"
+        android:textAlignment="center"/>
+
+    <Button
+        android:id="@+id/buttonVolverMain"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Volver a Main"
+        app:layout_constraintTop_toBottomOf="@id/textViewMensaje"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="16dp"/>
+
+    <Button
+        android:id="@+id/buttonIrTres"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ir a Activity Tres"
+        app:layout_constraintTop_toBottomOf="@id/buttonVolverMain"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="16dp"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+Archivo: ./app/src/main/res/layout/activity_tres.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ActivityTres">
+
+    <!-- ScrollView para hacer la lista de registros desplazable si es larga -->
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/buttonVolverMain"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="16dp">
+
+        <!-- TextView donde se mostrarán los registros cargados desde la base de datos -->
+        <TextView
+            android:id="@+id/textViewRegistros"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aquí se mostrarán los registros"
+            android:textSize="16sp"
+            android:padding="16dp"/>
+    </ScrollView>
+
+    <!-- Botón para volver a la pantalla principal (MainActivity) -->
+    <Button
+        android:id="@+id/buttonVolverMain"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Volver a Main"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/buttonCerrar"
+        android:layout_margin="16dp"/>
+
+    <!-- Botón para cerrar la aplicación -->
+    <Button
+        android:id="@+id/buttonCerrar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Cerrar App"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/buttonVolverMain"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="16dp"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+Archivo: ./app/src/main/res/layout/activity_firma.xml
+-----------------------------------------------------
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <com.github.gcacace.signaturepad.views.SignaturePad
+        android:id="@+id/signaturePad"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/white" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/btnLimpiar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Limpiar" />
+
+        <Button
+            android:id="@+id/btnAceptar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Aceptar"
+            android:enabled="false" /> <!-- Deshabilitado inicialmente -->
+
+    </LinearLayout>
+
+</LinearLayout>
+
+Archivo: ./app/src/main/res/values/strings.xml
+-----------------------------------------------------
+<resources>
+    <string name="app_name">sept1ejemplo</string>
+</resources>
+Archivo: ./app/src/main/res/values/colors.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
+Archivo: ./app/src/main/res/values/themes.xml
+-----------------------------------------------------
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme -->
+    <style name="Theme.Sept1ejemplo" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/teal_200</item>
+        <item name="colorSecondaryVariant">@color/teal_700</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    </style>
+</resources>

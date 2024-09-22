@@ -1,0 +1,42 @@
+adjunto la estructura de mi proyecto y el contenido de archivo gradle de nivel de app de mi aplicación que está compilando correctamente en android-studio, la aplicación actualmente consta de 3 activities: un formulario de dos campos y dos botones, otra activity que avisa que se registra la información en una base de datos y se crea un archivo pdf en el directorio de descargas de android, y presenta dos botones de navegación, y una tercera activity que muestra los registros que se han guardado en la base de datos. 
+
+necesito modificar el proyecto para que funcione de la siguiente manera:
+
+
+se debe crear un menú de hamburgueza que me permita la navegación entre las diferentes activities.
+main activity debe tener los dos campos de texto que siguen igual, y  3  botones: limpiar, firmar.
+el botón guardar, ya no debe  aparecer en main activity. 
+el botón limpiar de main activity, sigue teniendo la misma actividad, es decir, limpiar los campos del formulario.
+al hacer clic en el botón firmar, se pasa a firma-activity
+
+
+firma-activity debe presentar en pantalla un linezo en el que se dibujan los grafos de la firma, además, firma-activity debe contar con dos botones:
+el botón aceptar y el botón limpiar.
+
+el botón aceptar en firma-activity guardará la información de los campos de texto que se recogieron en main-activity, y también guardará la firma dibujada.
+
+el botón limpiar, limpiará el lienzo o la pizarra donde se dibuja la firma, para que el usuario de la aplicación intente la firma nuevamente. pero la información de los campos de texto que se recogieron en main-activity se mantendrá.
+
+consideraciones de firma-activity:
+una vez que se presiona el botón aceptar, se guardan los datos de timestamp, nombre-completo, nota, firma, la imagen de la firma se guardará debe convertir a formato base 64 para poder ser recuperado facilmente. además se crea el respectivo archivo pdf que se guarda en la carpeta de descargas de android.
+
+el documento pdf que se genera en esta nueva versión de la aplicación, además debe presentar el dibujo de la firma en la parte inferior izquierda de la página, justo encima del timestamp. la línea del timestamp debe decir: Firmado el (día) de (mes) de (año), a las (hora):(minutos).
+
+en el momento en el que se hace el registro en la base de datos y se guarda el documento en pdf, se debe mostrar un toast que notifica dicha acción.
+
+consideraciones para registros-activity:
+
+la activity que muestra los registros, se debe llamar registros-activiy, debe mostrar el índice, timestamp, nombre-completo, nota de los registros guardados
+
+
+se deben hacer los cambios en los archivos build-gradle si es necesario para que el proyecto funcione de manera coherente
+se deben hacer los cambios en el manifest para que el proyecto funcione de manera lógica y coherente, incluyendo solicitud de permisos y otros.
+
+
+me debes ofrecer la respuesta a esta soliciutd forma de un script bash que realiza las siguientes acciones:
+borra de la estructura de archivos y directorios de mi proyecto los elementos que ya no son necesarios.
+realiza todas las modificaciones en los archivos existentes y crea los nuevos archivos que sean necesarios.
+notifica si los cambios se han realizado con éxito o si existió algún problema. 
+
+
+
