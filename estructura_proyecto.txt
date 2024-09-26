@@ -1,11 +1,13 @@
 Archivo: ./app/src/main/AndroidManifest.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Permisos requeridos -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
 
     <application
         android:allowBackup="true"
@@ -30,6 +32,7 @@ Archivo: ./app/src/main/AndroidManifest.xml
         <activity android:name=".ActivityTres" />
     </application>
 </manifest>
+
 Archivo: ./build.gradle.kts
 -----------------------------------------------------
 buildscript {
@@ -109,7 +112,6 @@ dependencies {
 kotlin {
     jvmToolchain(17)
 }
-
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/MainActivity.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
@@ -121,7 +123,6 @@ import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
-import com.example.sept1ejemplo.FirmaActivity
 
 class MainActivity : AppCompatActivity() {
     private lateinit var editTextNombre: EditText
@@ -133,9 +134,6 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("MainActivity", "onCreate: Actividad principal iniciada")
         val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
-        // Remove this line: setSupportActionBar(toolbar)
-
-        // Instead, set the title directly on the toolbar
         toolbar.title = getString(R.string.app_name)
 
         editTextNombre = findViewById(R.id.editTextNombre)
@@ -143,6 +141,7 @@ class MainActivity : AppCompatActivity() {
 
         val btnLimpiar: Button = findViewById(R.id.btnLimpiar)
         val btnFirmar: Button = findViewById(R.id.btnFirmar)
+        val btnIrActivityTres: Button = findViewById(R.id.btnIrActivityTres) // Nuevo botón
 
         btnLimpiar.setOnClickListener {
             Log.d("MainActivity", "btnLimpiar: Limpiando campos")
@@ -157,8 +156,16 @@ class MainActivity : AppCompatActivity() {
             intent.putExtra("nota", editTextNota.text.toString())
             startActivity(intent)
         }
+
+        // Configurar el nuevo botón para ir a ActivityTres
+        btnIrActivityTres.setOnClickListener {
+            Log.d("MainActivity", "btnIrActivityTres: Iniciando ActivityTres")
+            val intent = Intent(this, ActivityTres::class.java)
+            startActivity(intent)
+        }
     }
 }
+
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/ActivityDos.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
@@ -260,13 +267,13 @@ class ActivityTres : AppCompatActivity() {
         }
     }
 }
-
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/FirmaActivity.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -328,9 +335,12 @@ class FirmaActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            // Convertir a bitmap monocromático
+            val monoBitmap = convertToMonochrome(signatureBitmap)
+
             // Guardar la firma en la base de datos y generar PDF
             val stream = ByteArrayOutputStream()
-            signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            monoBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
             val signatureBytes = stream.toByteArray()
             val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
             val timestamp = System.currentTimeMillis()
@@ -345,9 +355,9 @@ class FirmaActivity : AppCompatActivity() {
                 // Insertar el registro en la base de datos y obtener el ID generado
                 val registroId = database.registroDao().insertRegistro(registro)
 
-                // Ahora podemos generar el PDF con el ID correcto
+                // Generar el PDF con el ID correcto
                 val updatedRegistro = registro.copy(id = registroId.toInt())  // Actualizar el ID
-                val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
+                val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, monoBitmap)
 
                 launch(Dispatchers.Main) {
                     // Pasar el ID del registro a ActivityDos
@@ -362,6 +372,23 @@ class FirmaActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // Función para convertir el bitmap a monocromático
+    private fun convertToMonochrome(originalBitmap: Bitmap): Bitmap {
+        val width = originalBitmap.width
+        val height = originalBitmap.height
+        val monochromeBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                val pixel = originalBitmap.getPixel(x, y)
+                val avg = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3
+                val monoColor = if (avg < 128) Color.BLACK else Color.WHITE
+                monochromeBitmap.setPixel(x, y, monoColor)
+            }
+        }
+        return monochromeBitmap
     }
 }
 
@@ -515,7 +542,6 @@ object PdfGenerator {
         return file
     }
 }
-
 Archivo: ./app/src/main/res/layout/activity_main.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>
@@ -576,11 +602,20 @@ Archivo: ./app/src/main/res/layout/activity_main.xml
                 android:text="Firmar"
                 android:layout_marginTop="8dp" />
 
+            <!-- Nuevo botón para ir a ActivityTres -->
+            <Button
+                android:id="@+id/btnIrActivityTres"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ir a Activity Tres"
+                android:layout_marginTop="8dp" />
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
 Archivo: ./app/src/main/res/layout/activity_dos.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>
@@ -679,7 +714,6 @@ Archivo: ./app/src/main/res/layout/activity_tres.xml
         android:layout_margin="16dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
 Archivo: ./app/src/main/res/layout/activity_firma.xml
 -----------------------------------------------------
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
