@@ -21,12 +21,15 @@ class ActivityDos : AppCompatActivity() {
         val nota = intent.getStringExtra("NOTA") ?: ""
         val timestamp = intent.getLongExtra("TIMESTAMP", 0L)
         val registroId = intent.getIntExtra("REGISTRO_ID", -1) // Recibir el ID del registro
+        val signatureSize = intent.getIntExtra("SIGNATURE_SIZE", 0) // Tamaño de la firma en Base64
 
         val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
         val date = Date(timestamp)
 
-        // Mostrar el mensaje con el ID del registro
-        binding.textViewMensaje.text = "Se registró correctamente en la base de datos, y se creó el documento .pdf del registro correspondiente (Registro #$registroId)."
+        // Mostrar el mensaje con el ID del registro y el tamaño de la firma
+        binding.textViewMensaje.text = "Se registró correctamente en la base de datos, " +
+                "se creó el documento .pdf del registro correspondiente (Registro #$registroId). " +
+                "Tamaño de la firma: $signatureSize bytes."
 
         binding.buttonVolverMain.setOnClickListener {
             finish()

@@ -17,7 +17,6 @@ import java.io.ByteArrayOutputStream
 import java.util.*
 import com.example.sept1ejemplo.util.PdfGenerator
 
-
 class FirmaActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityFirmaBinding
@@ -122,6 +121,9 @@ class FirmaActivity : AppCompatActivity() {
         val signatureBytes = stream.toByteArray()
         val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
 
+        // Calcular el tamaño de la firma en Base64
+        val signatureSizeInBytes = signatureBase64.toByteArray().size
+
         val timestamp = System.currentTimeMillis()
         val nombre = intent.getStringExtra("nombre") ?: ""
         val nota = intent.getStringExtra("nota") ?: ""
@@ -141,11 +143,13 @@ class FirmaActivity : AppCompatActivity() {
             val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
 
             launch(Dispatchers.Main) {
+                // Pasar el tamaño de la firma y el registro a la siguiente actividad
                 val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
                     putExtra("NOMBRES_APELLIDOS", nombre)
                     putExtra("NOTA", nota)
                     putExtra("TIMESTAMP", timestamp)
                     putExtra("REGISTRO_ID", registroId.toInt())
+                    putExtra("SIGNATURE_SIZE", signatureSizeInBytes)  // Enviar el tamaño de la firma
                 }
                 startActivity(intent)
                 finish()
