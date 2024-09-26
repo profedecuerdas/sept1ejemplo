@@ -23,7 +23,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <activity android:name=".RegistroDocente" />
         <activity android:name=".FirmaActivity" />
         <activity android:name=".RegistrosActivity" />
         <activity android:name=".ActivityDos" />

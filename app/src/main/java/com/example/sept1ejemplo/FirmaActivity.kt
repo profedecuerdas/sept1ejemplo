@@ -13,6 +13,7 @@ import com.example.sept1ejemplo.database.RegistroEntity
 import com.example.sept1ejemplo.databinding.ActivityFirmaBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.util.*
 import com.example.sept1ejemplo.util.PdfGenerator
@@ -54,12 +55,18 @@ class FirmaActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Redimensionar y recortar la firma aquí
+            // Redimensionar y recortar la firma
             val resizedSignature = resizeBitmap(signatureBitmap, 600, 300)
             val croppedSignature = cropSignature(resizedSignature)
 
-            // Guardar la firma recortada y generar PDF
-            saveSignature(croppedSignature)
+            // Obtener el nombre del docente desde la base de datos y generar PDF
+            obtenerNombreDocente { nombreDocente ->
+                if (nombreDocente != null) {
+                    saveSignature(croppedSignature, nombreDocente)
+                } else {
+                    Toast.makeText(this, "Error: Docente no registrado", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // Botón Limpiar
@@ -68,7 +75,19 @@ class FirmaActivity : AppCompatActivity() {
         }
     }
 
-    // Función para redimensionar el bitmap
+    private fun obtenerNombreDocente(callback: (String?) -> Unit) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val docente = database.registroDao().getDocente()
+            withContext(Dispatchers.Main) {
+                if (docente != null) {
+                    callback(docente.nombreCompleto) // Nombre del docente obtenido
+                } else {
+                    callback(null)
+                }
+            }
+        }
+    }
+
     private fun resizeBitmap(original: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
         val width = original.width
         val height = original.height
@@ -86,7 +105,6 @@ class FirmaActivity : AppCompatActivity() {
         return Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
     }
 
-    // Función para recortar los bordes vacíos de la firma
     private fun cropSignature(signatureBitmap: Bitmap): Bitmap {
         val width = signatureBitmap.width
         val height = signatureBitmap.height
@@ -114,15 +132,11 @@ class FirmaActivity : AppCompatActivity() {
         }
     }
 
-    // Guardar la firma y generar el PDF
-    private fun saveSignature(signatureBitmap: Bitmap) {
+    private fun saveSignature(signatureBitmap: Bitmap, nombreDocente: String) {
         val stream = ByteArrayOutputStream()
         signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val signatureBytes = stream.toByteArray()
         val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
-
-        // Calcular el tamaño de la firma en Base64
-        val signatureSizeInBytes = signatureBase64.toByteArray().size
 
         val timestamp = System.currentTimeMillis()
         val nombre = intent.getStringExtra("nombre") ?: ""
@@ -139,17 +153,16 @@ class FirmaActivity : AppCompatActivity() {
             val registroId = database.registroDao().insertRegistro(registro)
             val updatedRegistro = registro.copy(id = registroId.toInt())
 
-            // Generar el PDF
-            val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
+            // Generar el PDF pasando el nombre del docente
+            val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap, nombreDocente)
 
             launch(Dispatchers.Main) {
-                // Pasar el tamaño de la firma y el registro a la siguiente actividad
                 val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
                     putExtra("NOMBRES_APELLIDOS", nombre)
                     putExtra("NOTA", nota)
                     putExtra("TIMESTAMP", timestamp)
                     putExtra("REGISTRO_ID", registroId.toInt())
-                    putExtra("SIGNATURE_SIZE", signatureSizeInBytes)  // Enviar el tamaño de la firma
+                    putExtra("SIGNATURE_SIZE", signatureBase64.toByteArray().size)
                 }
                 startActivity(intent)
                 finish()

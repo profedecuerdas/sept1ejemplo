@@ -25,7 +25,7 @@ Archivo: ./app/src/main/AndroidManifest.xml
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <activity android:name=".RegistroDocente" />
         <activity android:name=".FirmaActivity" />
         <activity android:name=".RegistrosActivity" />
         <activity android:name=".ActivityDos" />
@@ -116,21 +116,29 @@ Archivo: ./app/src/main/java/com/example/sept1ejemplo/MainActivity.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
 
+import com.google.android.material.appbar.MaterialToolbar
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.appbar.MaterialToolbar
+import androidx.lifecycle.lifecycleScope
+import com.example.sept1ejemplo.database.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var database: AppDatabase
     private lateinit var editTextNombre: EditText
     private lateinit var editTextNota: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        database = AppDatabase.getDatabase(this)
 
         Log.d("MainActivity", "onCreate: Actividad principal iniciada")
         val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
@@ -141,7 +149,20 @@ class MainActivity : AppCompatActivity() {
 
         val btnLimpiar: Button = findViewById(R.id.btnLimpiar)
         val btnFirmar: Button = findViewById(R.id.btnFirmar)
-        val btnIrActivityTres: Button = findViewById(R.id.btnIrActivityTres) // Nuevo botón
+        val btnIrActivityTres: Button = findViewById(R.id.btnIrActivityTres)
+
+        // Verificar si existe un docente en la base de datos
+        lifecycleScope.launch {
+            val docenteExists = withContext(Dispatchers.IO) {
+                database.registroDao().getDocente()
+            }
+            if (docenteExists == null) {
+                // Si no existe, redirigir a la actividad RegistroDocente
+                val intent = Intent(this@MainActivity, RegistroDocente::class.java)
+                startActivity(intent)
+                finish()
+            }
+        }
 
         btnLimpiar.setOnClickListener {
             Log.d("MainActivity", "btnLimpiar: Limpiando campos")
@@ -157,7 +178,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Configurar el nuevo botón para ir a ActivityTres
         btnIrActivityTres.setOnClickListener {
             Log.d("MainActivity", "btnIrActivityTres: Iniciando ActivityTres")
             val intent = Intent(this, ActivityTres::class.java)
@@ -333,7 +353,7 @@ class FirmaActivity : AppCompatActivity() {
             val croppedSignature = cropSignature(resizedSignature)
 
             // Guardar la firma recortada y generar PDF
-            saveSignature(croppedSignature)
+            saveSignature(croppedSignature, nombre)
         }
 
         // Botón Limpiar
@@ -389,7 +409,7 @@ class FirmaActivity : AppCompatActivity() {
     }
 
     // Guardar la firma y generar el PDF
-    private fun saveSignature(signatureBitmap: Bitmap) {
+    private fun saveSignature(signatureBitmap: Bitmap, nombreDocente: String) {
         val stream = ByteArrayOutputStream()
         signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val signatureBytes = stream.toByteArray()
@@ -413,8 +433,8 @@ class FirmaActivity : AppCompatActivity() {
             val registroId = database.registroDao().insertRegistro(registro)
             val updatedRegistro = registro.copy(id = registroId.toInt())
 
-            // Generar el PDF
-            val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
+            // Generar el PDF pasando el nombre del docente
+            val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap, nombreDocente)
 
             launch(Dispatchers.Main) {
                 // Pasar el tamaño de la firma y el registro a la siguiente actividad
@@ -440,10 +460,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [RegistroEntity::class], version = 2, exportSchema = false)
+@Database(entities = [RegistroEntity::class, DocenteEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun registroDao(): RegistroDao
 
@@ -451,23 +469,13 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        // Define the migration from version 1 to 2
-        private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                // Add the 'firmaBase64' column to the 'registros' table
-                database.execSQL("ALTER TABLE registros ADD COLUMN firmaBase64 TEXT")
-            }
-        }
-
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "app_database"
-                )
-                    .addMigrations(MIGRATION_1_2) // Add migration strategy
-                    .build()
+                ).fallbackToDestructiveMigration().build()
                 INSTANCE = instance
                 instance
             }
@@ -485,11 +493,19 @@ import androidx.room.Query
 
 @Dao
 interface RegistroDao {
+    // Consultas para la tabla de registros
     @Query("SELECT * FROM registros ORDER BY timestamp DESC")
     suspend fun getAllRegistros(): List<RegistroEntity>
 
     @Insert
-    suspend fun insertRegistro(registro: RegistroEntity): Long // Devuelve el ID generado
+    suspend fun insertRegistro(registro: RegistroEntity): Long
+
+    // Consultas para la tabla de docente
+    @Query("SELECT * FROM docente LIMIT 1")
+    suspend fun getDocente(): DocenteEntity?
+
+    @Insert
+    suspend fun insertDocente(docente: DocenteEntity)
 }
 
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/RegistroEntity.kt
@@ -541,7 +557,7 @@ object PdfGenerator {
     }
 
     // Función para generar el archivo PDF
-    fun generatePdf(context: Context, registro: RegistroEntity, signatureBitmap: Bitmap): File {
+    fun generatePdf(context: Context, registro: RegistroEntity, signatureBitmap: Bitmap, nombreDocente: String): File {  // Añadimos el parámetro nombreDocente
         val fileName = generatePdfFileName(registro.nombresApellidos, registro.timestamp)
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val file = File(downloadsDir, fileName)
@@ -564,6 +580,7 @@ object PdfGenerator {
 
                     // Añadir los datos del registro
                     document.add(Paragraph("Registro #${registro.id}"))
+                    document.add(Paragraph("Docente: $nombreDocente"))  // Añadir el nombre del docente aquí
                     document.add(Paragraph("Nombres y Apellidos: ${registro.nombresApellidos}"))
                     document.add(Paragraph("Nota: ${registro.nota}"))
 
@@ -802,7 +819,7 @@ Archivo: ./app/src/main/res/layout/activity_firma.xml
 Archivo: ./app/src/main/res/values/strings.xml
 -----------------------------------------------------
 <resources>
-    <string name="app_name">sept1ejemplo</string>
+    <string name="app_name">Observador Digital</string>
 </resources>
 Archivo: ./app/src/main/res/values/colors.xml
 -----------------------------------------------------
