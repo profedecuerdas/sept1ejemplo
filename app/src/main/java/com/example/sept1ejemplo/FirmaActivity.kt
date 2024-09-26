@@ -4,19 +4,19 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Base64
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
 import com.example.sept1ejemplo.database.RegistroEntity
 import com.example.sept1ejemplo.databinding.ActivityFirmaBinding
-import com.example.sept1ejemplo.util.PdfGenerator
-import com.github.gcacace.signaturepad.views.SignaturePad
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.*
-import android.util.Base64
 import java.io.ByteArrayOutputStream
+import java.util.*
+import com.example.sept1ejemplo.util.PdfGenerator
+
 
 class FirmaActivity : AppCompatActivity() {
 
@@ -35,27 +35,18 @@ class FirmaActivity : AppCompatActivity() {
         val nota = intent.getStringExtra("nota") ?: ""
 
         // Configurar el listener para el SignaturePad
-        binding.signaturePad.setOnSignedListener(object : SignaturePad.OnSignedListener {
+        binding.signaturePad.setOnSignedListener(object : com.github.gcacace.signaturepad.views.SignaturePad.OnSignedListener {
             override fun onSigned() {
-                // Habilitar el botón Aceptar cuando hay una firma
                 binding.btnAceptar.isEnabled = true
                 signatureBitmap = binding.signaturePad.signatureBitmap
             }
 
-            override fun onStartSigning() {
-                // Opcional: manejar cuando se comienza a firmar
-            }
-
             override fun onClear() {
-                // Deshabilitar el botón Aceptar si la firma se borra
                 binding.btnAceptar.isEnabled = false
             }
-        })
 
-        // Botón Limpiar
-        binding.btnLimpiar.setOnClickListener {
-            binding.signaturePad.clear()
-        }
+            override fun onStartSigning() {}
+        })
 
         // Botón Aceptar
         binding.btnAceptar.setOnClickListener {
@@ -64,59 +55,101 @@ class FirmaActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Convertir a bitmap monocromático
-            val monoBitmap = convertToMonochrome(signatureBitmap)
+            // Redimensionar y recortar la firma aquí
+            val resizedSignature = resizeBitmap(signatureBitmap, 600, 300)
+            val croppedSignature = cropSignature(resizedSignature)
 
-            // Guardar la firma en la base de datos y generar PDF
-            val stream = ByteArrayOutputStream()
-            monoBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-            val signatureBytes = stream.toByteArray()
-            val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
-            val timestamp = System.currentTimeMillis()
-            val registro = RegistroEntity(
-                nombresApellidos = nombre,
-                nota = nota,
-                timestamp = timestamp,
-                firmaBase64 = signatureBase64
-            )
+            // Guardar la firma recortada y generar PDF
+            saveSignature(croppedSignature)
+        }
 
-            lifecycleScope.launch(Dispatchers.IO) {
-                // Insertar el registro en la base de datos y obtener el ID generado
-                val registroId = database.registroDao().insertRegistro(registro)
-
-                // Generar el PDF con el ID correcto
-                val updatedRegistro = registro.copy(id = registroId.toInt())  // Actualizar el ID
-                val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, monoBitmap)
-
-                launch(Dispatchers.Main) {
-                    // Pasar el ID del registro a ActivityDos
-                    val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
-                        putExtra("NOMBRES_APELLIDOS", nombre)
-                        putExtra("NOTA", nota)
-                        putExtra("TIMESTAMP", timestamp)
-                        putExtra("REGISTRO_ID", registroId.toInt()) // Pasar el ID del registro
-                    }
-                    startActivity(intent)
-                    finish()
-                }
-            }
+        // Botón Limpiar
+        binding.btnLimpiar.setOnClickListener {
+            binding.signaturePad.clear()
         }
     }
 
-    // Función para convertir el bitmap a monocromático
-    private fun convertToMonochrome(originalBitmap: Bitmap): Bitmap {
-        val width = originalBitmap.width
-        val height = originalBitmap.height
-        val monochromeBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    // Función para redimensionar el bitmap
+    private fun resizeBitmap(original: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+        val width = original.width
+        val height = original.height
+        val aspectRatio = width.toFloat() / height.toFloat()
+
+        var newWidth = maxWidth
+        var newHeight = maxHeight
+
+        if (width > height) {
+            newHeight = (newWidth / aspectRatio).toInt()
+        } else {
+            newWidth = (newHeight * aspectRatio).toInt()
+        }
+
+        return Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
+    }
+
+    // Función para recortar los bordes vacíos de la firma
+    private fun cropSignature(signatureBitmap: Bitmap): Bitmap {
+        val width = signatureBitmap.width
+        val height = signatureBitmap.height
+        var minX = width
+        var minY = height
+        var maxX = -1
+        var maxY = -1
 
         for (x in 0 until width) {
             for (y in 0 until height) {
-                val pixel = originalBitmap.getPixel(x, y)
-                val avg = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3
-                val monoColor = if (avg < 128) Color.BLACK else Color.WHITE
-                monochromeBitmap.setPixel(x, y, monoColor)
+                val pixel = signatureBitmap.getPixel(x, y)
+                if (pixel != Color.WHITE) {
+                    if (x < minX) minX = x
+                    if (x > maxX) maxX = x
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
             }
         }
-        return monochromeBitmap
+
+        return if (maxX == -1 || maxY == -1) {
+            signatureBitmap
+        } else {
+            Bitmap.createBitmap(signatureBitmap, minX, minY, maxX - minX + 1, maxY - minY + 1)
+        }
+    }
+
+    // Guardar la firma y generar el PDF
+    private fun saveSignature(signatureBitmap: Bitmap) {
+        val stream = ByteArrayOutputStream()
+        signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        val signatureBytes = stream.toByteArray()
+        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
+
+        val timestamp = System.currentTimeMillis()
+        val nombre = intent.getStringExtra("nombre") ?: ""
+        val nota = intent.getStringExtra("nota") ?: ""
+
+        val registro = RegistroEntity(
+            nombresApellidos = nombre,
+            nota = nota,
+            timestamp = timestamp,
+            firmaBase64 = signatureBase64
+        )
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val registroId = database.registroDao().insertRegistro(registro)
+            val updatedRegistro = registro.copy(id = registroId.toInt())
+
+            // Generar el PDF
+            val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap)
+
+            launch(Dispatchers.Main) {
+                val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
+                    putExtra("NOMBRES_APELLIDOS", nombre)
+                    putExtra("NOTA", nota)
+                    putExtra("TIMESTAMP", timestamp)
+                    putExtra("REGISTRO_ID", registroId.toInt())
+                }
+                startActivity(intent)
+                finish()
+            }
+        }
     }
 }
