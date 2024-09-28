@@ -8,6 +8,7 @@ data class RegistroEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nombresApellidos: String,
     val nota: String,
+    val asignatura: String,  // Nuevo campo
     val timestamp: Long,
     val firmaBase64: String? = null,
 )

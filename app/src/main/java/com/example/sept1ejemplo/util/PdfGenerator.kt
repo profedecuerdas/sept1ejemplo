@@ -50,8 +50,9 @@ object PdfGenerator {
 
                     // Añadir datos al PDF
                     document.add(Paragraph("Registro #${registro.id}"))
-                    document.add(Paragraph("Docente: $nombreDocente"))  // Aquí se pasa el nombre del docente
+                    document.add(Paragraph("Docente: $nombreDocente"))
                     document.add(Paragraph("Nombres y Apellidos: ${registro.nombresApellidos}"))
+                    document.add(Paragraph("Asignatura: ${registro.asignatura}"))  // Añadimos la asignatura
                     document.add(Paragraph("Nota: ${registro.nota}"))
 
                     // Convertir la firma a imagen y agregarla al PDF

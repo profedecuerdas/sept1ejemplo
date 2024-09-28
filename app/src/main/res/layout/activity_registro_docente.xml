@@ -6,15 +6,23 @@
     android:padding="16dp">
 
     <EditText
-        android:id="@+id/editTextNombreDocente"
+        android:id="@+id/etNombreCompleto"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Nombre del docente" />
+        android:hint="Nombre completo del docente"
+        android:inputType="textPersonName" />
+
+    <EditText
+        android:id="@+id/etAsignaturas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Asignaturas (separadas por comas)"
+        android:inputType="textMultiLine" />
 
     <Button
-        android:id="@+id/btnRegistrarDocente"
+        android:id="@+id/btnRegistrar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Registrar Docente"
-        android:layout_marginTop="16dp" />
+        android:text="Registrar" />
+
 </LinearLayout>

@@ -2,53 +2,59 @@ package com.example.sept1ejemplo
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.database.AsignaturaEntity
 import com.example.sept1ejemplo.database.DocenteEntity
+import com.example.sept1ejemplo.databinding.ActivityRegistroDocenteBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class RegistroDocente : AppCompatActivity() {
 
+    private lateinit var binding: ActivityRegistroDocenteBinding
     private lateinit var database: AppDatabase
-    private lateinit var editTextNombreDocente: EditText
-    private lateinit var btnRegistrarDocente: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_registro_docente)
+        binding = ActivityRegistroDocenteBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         database = AppDatabase.getDatabase(this)
 
-        editTextNombreDocente = findViewById(R.id.editTextNombreDocente)
-        btnRegistrarDocente = findViewById(R.id.btnRegistrarDocente)
+        binding.btnRegistrar.setOnClickListener {
+            val nombreCompleto = binding.etNombreCompleto.text.toString()
+            val asignaturas = binding.etAsignaturas.text.toString().split(",").map { it.trim() }
 
-        btnRegistrarDocente.setOnClickListener {
-            val nombreDocente = editTextNombreDocente.text.toString().trim()
-
-            if (nombreDocente.isEmpty()) {
-                Toast.makeText(this, "Por favor ingrese un nombre", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+            if (nombreCompleto.isNotEmpty() && asignaturas.isNotEmpty()) {
+                registrarDocente(nombreCompleto, asignaturas)
+            } else {
+                Toast.makeText(this, "Por favor, complete todos los campos", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
 
-            // Registrar docente en la base de datos
-            lifecycleScope.launch(Dispatchers.IO) {
-                val docente = DocenteEntity(nombreCompleto = nombreDocente) // Aquí corriges el nombre del parámetro
-                database.registroDao().insertDocente(docente)
+    private fun registrarDocente(nombreCompleto: String, asignaturas: List<String>) {
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val docenteId = database.registroDao().insertDocente(DocenteEntity(nombreCompleto = nombreCompleto))
 
-                // Volver a la MainActivity tras el registro
+                    asignaturas.forEach { asignatura ->
+                        database.registroDao().insertAsignatura(AsignaturaEntity(nombre = asignatura, docenteId = docenteId.toInt()))
+                    }
+                }
+
+                Toast.makeText(this@RegistroDocente, "Docente y asignaturas registrados con éxito", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this@RegistroDocente, MainActivity::class.java)
+                startActivity(intent)
+                finish()
+            } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RegistroDocente, "Docente registrado correctamente", Toast.LENGTH_SHORT).show()
-
-                    // Lanzar MainActivity y finalizar RegistroDocente
-                    val intent = Intent(this@RegistroDocente, MainActivity::class.java)
-                    startActivity(intent)
-                    finish() // Finaliza RegistroDocente pero no cierra la aplicación
+                    Toast.makeText(this@RegistroDocente, "Error al registrar: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }

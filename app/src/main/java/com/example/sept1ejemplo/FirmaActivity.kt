@@ -15,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.util.*
 import com.example.sept1ejemplo.util.PdfGenerator
 
 class FirmaActivity : AppCompatActivity() {
@@ -33,6 +32,7 @@ class FirmaActivity : AppCompatActivity() {
 
         val nombre = intent.getStringExtra("nombre") ?: ""
         val nota = intent.getStringExtra("nota") ?: ""
+        val asignatura = intent.getStringExtra("asignatura") ?: ""
 
         // Configurar el listener para el SignaturePad
         binding.signaturePad.setOnSignedListener(object : com.github.gcacace.signaturepad.views.SignaturePad.OnSignedListener {
@@ -62,7 +62,7 @@ class FirmaActivity : AppCompatActivity() {
             // Obtener el nombre del docente desde la base de datos y generar PDF
             obtenerNombreDocente { nombreDocente ->
                 if (nombreDocente != null) {
-                    saveSignature(croppedSignature, nombreDocente)
+                    saveSignature(croppedSignature, nombreDocente, nombre, nota, asignatura)
                 } else {
                     Toast.makeText(this, "Error: Docente no registrado", Toast.LENGTH_SHORT).show()
                 }
@@ -72,19 +72,6 @@ class FirmaActivity : AppCompatActivity() {
         // Botón Limpiar
         binding.btnLimpiar.setOnClickListener {
             binding.signaturePad.clear()
-        }
-    }
-
-    private fun obtenerNombreDocente(callback: (String?) -> Unit) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val docente = database.registroDao().getDocente()
-            withContext(Dispatchers.Main) {
-                if (docente != null) {
-                    callback(docente.nombreCompleto) // Nombre del docente obtenido
-                } else {
-                    callback(null)
-                }
-            }
         }
     }
 
@@ -132,19 +119,31 @@ class FirmaActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveSignature(signatureBitmap: Bitmap, nombreDocente: String) {
+    private fun obtenerNombreDocente(callback: (String?) -> Unit) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val docente = database.registroDao().getDocente()
+            withContext(Dispatchers.Main) {
+                if (docente != null) {
+                    callback(docente.nombreCompleto)
+                } else {
+                    callback(null)
+                }
+            }
+        }
+    }
+
+    private fun saveSignature(signatureBitmap: Bitmap, nombreDocente: String, nombre: String, nota: String, asignatura: String) {
         val stream = ByteArrayOutputStream()
         signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val signatureBytes = stream.toByteArray()
         val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
 
         val timestamp = System.currentTimeMillis()
-        val nombre = intent.getStringExtra("nombre") ?: ""
-        val nota = intent.getStringExtra("nota") ?: ""
 
         val registro = RegistroEntity(
             nombresApellidos = nombre,
             nota = nota,
+            asignatura = asignatura,
             timestamp = timestamp,
             firmaBase64 = signatureBase64
         )
@@ -153,13 +152,14 @@ class FirmaActivity : AppCompatActivity() {
             val registroId = database.registroDao().insertRegistro(registro)
             val updatedRegistro = registro.copy(id = registroId.toInt())
 
-            // Generar el PDF pasando el nombre del docente
+            // Generar el PDF pasando el nombre del docente y la asignatura
             val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap, nombreDocente)
 
             launch(Dispatchers.Main) {
                 val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
                     putExtra("NOMBRES_APELLIDOS", nombre)
                     putExtra("NOTA", nota)
+                    putExtra("ASIGNATURA", asignatura)
                     putExtra("TIMESTAMP", timestamp)
                     putExtra("REGISTRO_ID", registroId.toInt())
                     putExtra("SIGNATURE_SIZE", signatureBase64.toByteArray().size)

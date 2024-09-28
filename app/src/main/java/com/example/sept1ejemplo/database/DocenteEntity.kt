@@ -5,7 +5,6 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "docente")
 data class DocenteEntity(
-    @PrimaryKey val id: Int = 1,  // Solo un registro
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nombreCompleto: String
 )
-

@@ -46,6 +46,7 @@ class ActivityTres : AppCompatActivity() {
             val registrosText = registros.joinToString("\n\n") { registro ->
                 "Registro #${registro.id}\n" +  // Mostrar el ID del registro
                         "Nombres y Apellidos: ${registro.nombresApellidos}\n" +
+                        "Asignatura: ${registro.asignatura}\n" +  // Añadimos la asignatura
                         "Nota: ${registro.nota}\n" +
                         "Fecha: ${dateFormat.format(Date(registro.timestamp))}"
             }
