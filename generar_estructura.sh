@@ -10,14 +10,22 @@ FILES=(
     "./app/src/main/java/com/example/sept1ejemplo/ActivityDos.kt"
     "./app/src/main/java/com/example/sept1ejemplo/ActivityTres.kt"
     "./app/src/main/java/com/example/sept1ejemplo/FirmaActivity.kt"
+    "./app/src/main/java/com/example/sept1ejemplo/RegistrosActivity.kt"  # Nuevo archivo
+    "./app/src/main/java/com/example/sept1ejemplo/RegistroDocente.kt"    # Nuevo archivo
     "./app/src/main/java/com/example/sept1ejemplo/database/AppDatabase.kt"
     "./app/src/main/java/com/example/sept1ejemplo/database/RegistroDao.kt"
     "./app/src/main/java/com/example/sept1ejemplo/database/RegistroEntity.kt"
+    "./app/src/main/java/com/example/sept1ejemplo/database/AsignaturaEntity.kt"   # Nuevo archivo
+    "./app/src/main/java/com/example/sept1ejemplo/database/DocenteEntity.kt"      # Nuevo archivo
+    "./app/src/main/java/com/example/sept1ejemplo/database/DocenteWithAsignaturas.kt"  # Nuevo archivo
     "./app/src/main/java/com/example/sept1ejemplo/util/PdfGenerator.kt"
     "./app/src/main/res/layout/activity_main.xml"
     "./app/src/main/res/layout/activity_dos.xml"
     "./app/src/main/res/layout/activity_tres.xml"
     "./app/src/main/res/layout/activity_firma.xml"
+    "./app/src/main/res/layout/item_registro.xml"      # Nuevo archivo
+    "./app/src/main/res/layout/activity_registro_docente.xml"  # Nuevo archivo
+    "./app/src/main/res/layout/activity_registros.xml"  # Nuevo archivo
     "./app/src/main/res/values/strings.xml"
     "./app/src/main/res/values/colors.xml"
     "./app/src/main/res/values/themes.xml"

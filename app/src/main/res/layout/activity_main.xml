@@ -29,45 +29,65 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <EditText
-                android:id="@+id/editTextNombre"
+            <!-- TextView para el nombre del docente -->
+            <TextView
+                android:id="@+id/textViewDocenteName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Nombre completo" />
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
+
+            <EditText
+                android:id="@+id/elijeAsignatura"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ems="10"
+                android:inputType="text"
+                android:text="Asignatura:" />
 
             <Spinner
                 android:id="@+id/spinnerAsignaturas"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp" />
+                android:layout_height="wrap_content" />
 
+            <!-- EditText para el nombre del estudiante -->
+
+            <EditText
+                android:id="@+id/editTextNombre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Nombre y grado del estudiante" />
+
+            <!-- EditText para la nota del estudiante -->
             <EditText
                 android:id="@+id/editTextNota"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Nota"
-                android:layout_marginTop="16dp" />
+                android:hint="Observación" />
 
+            <!-- Spinner para asignaturas -->
+
+
+            <!-- Botones -->
             <Button
                 android:id="@+id/btnLimpiar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Limpiar"
-                android:layout_marginTop="16dp" />
+                android:text="Limpiar" />
 
             <Button
                 android:id="@+id/btnFirmar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Firmar"
-                android:layout_marginTop="8dp" />
+                android:text="Firmar" />
 
             <Button
                 android:id="@+id/btnIrActivityTres"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Registros"
-                android:layout_marginTop="8dp" />
+                android:text="Registros" />
 
         </LinearLayout>
 

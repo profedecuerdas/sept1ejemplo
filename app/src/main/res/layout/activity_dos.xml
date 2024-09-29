@@ -8,11 +8,23 @@
     tools:context=".ActivityDos">
 
     <TextView
+        android:id="@+id/textViewDocenteName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_margin="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
         android:id="@+id/textViewMensaje"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Se registró correctamente en la base de datos, y se creó el documento .pdf del registro correspondiente."
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewDocenteName"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_margin="16dp"

@@ -7,39 +7,38 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
 import com.example.sept1ejemplo.database.AsignaturaEntity
+import com.example.sept1ejemplo.databinding.ActivityMainBinding
 import com.google.android.material.appbar.MaterialToolbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding  // Usamos View Binding
     private lateinit var database: AppDatabase
-    private lateinit var editTextNombre: EditText
-    private lateinit var editTextNota: EditText
-    private lateinit var spinnerAsignaturas: Spinner
     private lateinit var asignaturas: List<AsignaturaEntity>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         database = AppDatabase.getDatabase(this)
 
         Log.d("MainActivity", "onCreate: Actividad principal iniciada")
-        val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
+        val toolbar: MaterialToolbar = binding.toolbar
         toolbar.title = getString(R.string.app_name)
 
-        editTextNombre = findViewById(R.id.editTextNombre)
-        editTextNota = findViewById(R.id.editTextNota)
-        spinnerAsignaturas = findViewById(R.id.spinnerAsignaturas)
-
-        val btnLimpiar: Button = findViewById(R.id.btnLimpiar)
-        val btnFirmar: Button = findViewById(R.id.btnFirmar)
-        val btnIrActivityTres: Button = findViewById(R.id.btnIrActivityTres)
+        // Inicializar componentes con View Binding
+        val btnLimpiar: Button = binding.btnLimpiar
+        val btnFirmar: Button = binding.btnFirmar
+        val btnIrActivityTres: Button = binding.btnIrActivityTres
 
         lifecycleScope.launch {
             checkDocenteAndLoadAsignaturas()
@@ -47,17 +46,17 @@ class MainActivity : AppCompatActivity() {
 
         btnLimpiar.setOnClickListener {
             Log.d("MainActivity", "btnLimpiar: Limpiando campos")
-            editTextNombre.text.clear()
-            editTextNota.text.clear()
-            spinnerAsignaturas.setSelection(0)
+            binding.editTextNombre.text.clear()
+            binding.editTextNota.text.clear()
+            binding.spinnerAsignaturas.setSelection(0)
         }
 
         btnFirmar.setOnClickListener {
             Log.d("MainActivity", "btnFirmar: Iniciando FirmaActivity")
             val intent = Intent(this, FirmaActivity::class.java)
-            intent.putExtra("nombre", editTextNombre.text.toString())
-            intent.putExtra("nota", editTextNota.text.toString())
-            intent.putExtra("asignatura", spinnerAsignaturas.selectedItem.toString())
+            intent.putExtra("nombre", binding.editTextNombre.text.toString())
+            intent.putExtra("nota", binding.editTextNota.text.toString())
+            intent.putExtra("asignatura", binding.spinnerAsignaturas.selectedItem.toString())
             startActivity(intent)
         }
 
@@ -69,17 +68,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun checkDocenteAndLoadAsignaturas() {
-        val docenteExists = withContext(Dispatchers.IO) {
+        val docente = withContext(Dispatchers.IO) {
             database.registroDao().getDocente()
         }
-        if (docenteExists == null) {
-            // Si no existe, redirigir a la actividad RegistroDocente
+        if (docente == null) {
             val intent = Intent(this@MainActivity, RegistroDocente::class.java)
             startActivity(intent)
             finish()
         } else {
-            // Si existe, cargar las asignaturas
-            loadAsignaturas(docenteExists.id)
+            withContext(Dispatchers.Main) {
+                binding.textViewDocenteName.text = "Docente: ${docente.nombreCompleto}"
+            }
+            loadAsignaturas(docente.id)
         }
     }
 
@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, asignaturasNombres)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         withContext(Dispatchers.Main) {
-            spinnerAsignaturas.adapter = adapter
+            binding.spinnerAsignaturas.adapter = adapter
         }
     }
 }

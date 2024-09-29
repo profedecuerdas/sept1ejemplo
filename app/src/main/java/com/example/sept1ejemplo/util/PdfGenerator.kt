@@ -18,17 +18,18 @@ import java.util.*
 
 object PdfGenerator {
 
-    fun generatePdfFileName(nombresApellidos: String, timestamp: Long): String {
-        val words = nombresApellidos.split(" ")
+    fun generatePdfFileName(registro: RegistroEntity): String {
+        val words = registro.nombresApellidos.split(" ")
         val abbreviation = words.joinToString("_") { word ->
-            word.take(3).capitalize(Locale.getDefault()) }
+            word.take(3).capitalize(Locale.getDefault())
+        }
         val dateFormat = SimpleDateFormat("dd-MMM-HH-mm", Locale.getDefault())
-        val formattedTimestamp = dateFormat.format(Date(timestamp))
-        return "Reg_${abbreviation}_$formattedTimestamp.pdf"
+        val formattedTimestamp = dateFormat.format(Date(registro.timestamp))
+        return "Reg${registro.id}_${abbreviation}_$formattedTimestamp.pdf"
     }
 
     fun generatePdf(context: Context, registro: RegistroEntity, signatureBitmap: Bitmap, nombreDocente: String): File {
-        val fileName = generatePdfFileName(registro.nombresApellidos, registro.timestamp)
+        val fileName = generatePdfFileName(registro)
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val file = File(downloadsDir, fileName)
 
@@ -51,8 +52,8 @@ object PdfGenerator {
                     // Añadir datos al PDF
                     document.add(Paragraph("Registro #${registro.id}"))
                     document.add(Paragraph("Docente: $nombreDocente"))
-                    document.add(Paragraph("Nombres y Apellidos: ${registro.nombresApellidos}"))
-                    document.add(Paragraph("Asignatura: ${registro.asignatura}"))  // Añadimos la asignatura
+                    document.add(Paragraph("Asignatura: ${registro.asignatura}"))
+
                     document.add(Paragraph("Nota: ${registro.nota}"))
 
                     // Convertir la firma a imagen y agregarla al PDF
@@ -62,7 +63,7 @@ object PdfGenerator {
                     val signatureImage = Image(ImageDataFactory.create(signatureBytes))
                     signatureImage.scaleToFit(100f, 100f)
                     document.add(signatureImage)
-
+                    document.add(Paragraph("Estudiante: ${registro.nombresApellidos}"))
                     // Añadir fecha y hora
                     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
                     val date = Date(registro.timestamp)

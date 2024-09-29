@@ -63,7 +63,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.2"
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -112,19 +112,24 @@ dependencies {
 kotlin {
     jvmToolchain(17)
 }
+
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/MainActivity.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
 
-import com.google.android.material.appbar.MaterialToolbar
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.Spinner
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.database.AsignaturaEntity
+import com.google.android.material.appbar.MaterialToolbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -133,6 +138,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var database: AppDatabase
     private lateinit var editTextNombre: EditText
     private lateinit var editTextNota: EditText
+    private lateinit var spinnerAsignaturas: Spinner
+    private lateinit var asignaturas: List<AsignaturaEntity>
+    private lateinit var textViewDocenteName: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -146,28 +154,22 @@ class MainActivity : AppCompatActivity() {
 
         editTextNombre = findViewById(R.id.editTextNombre)
         editTextNota = findViewById(R.id.editTextNota)
+        spinnerAsignaturas = findViewById(R.id.spinnerAsignaturas)
+        textViewDocenteName = findViewById(R.id.textViewDocenteName)
 
         val btnLimpiar: Button = findViewById(R.id.btnLimpiar)
         val btnFirmar: Button = findViewById(R.id.btnFirmar)
         val btnIrActivityTres: Button = findViewById(R.id.btnIrActivityTres)
 
-        // Verificar si existe un docente en la base de datos
         lifecycleScope.launch {
-            val docenteExists = withContext(Dispatchers.IO) {
-                database.registroDao().getDocente()
-            }
-            if (docenteExists == null) {
-                // Si no existe, redirigir a la actividad RegistroDocente
-                val intent = Intent(this@MainActivity, RegistroDocente::class.java)
-                startActivity(intent)
-                finish()
-            }
+            checkDocenteAndLoadAsignaturas()
         }
 
         btnLimpiar.setOnClickListener {
             Log.d("MainActivity", "btnLimpiar: Limpiando campos")
             editTextNombre.text.clear()
             editTextNota.text.clear()
+            spinnerAsignaturas.setSelection(0)
         }
 
         btnFirmar.setOnClickListener {
@@ -175,6 +177,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, FirmaActivity::class.java)
             intent.putExtra("nombre", editTextNombre.text.toString())
             intent.putExtra("nota", editTextNota.text.toString())
+            intent.putExtra("asignatura", spinnerAsignaturas.selectedItem.toString())
             startActivity(intent)
         }
 
@@ -184,8 +187,37 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
     }
-}
 
+    private suspend fun checkDocenteAndLoadAsignaturas() {
+        val docente = withContext(Dispatchers.IO) {
+            database.registroDao().getDocente()
+        }
+        if (docente == null) {
+            // Si no existe, redirigir a la actividad RegistroDocente
+            val intent = Intent(this@MainActivity, RegistroDocente::class.java)
+            startActivity(intent)
+            finish()
+        } else {
+            // Si existe, mostrar el nombre del docente y cargar las asignaturas
+            withContext(Dispatchers.Main) {
+                textViewDocenteName.text = "Docente: ${docente.nombreCompleto}"
+            }
+            loadAsignaturas(docente.id)
+        }
+    }
+
+    private suspend fun loadAsignaturas(docenteId: Int) {
+        asignaturas = withContext(Dispatchers.IO) {
+            database.registroDao().getAsignaturasForDocente(docenteId)
+        }
+        val asignaturasNombres = asignaturas.map { it.nombre }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, asignaturasNombres)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        withContext(Dispatchers.Main) {
+            spinnerAsignaturas.adapter = adapter
+        }
+    }
+}
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/ActivityDos.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
@@ -193,33 +225,43 @@ package com.example.sept1ejemplo
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.sept1ejemplo.database.AppDatabase
 import com.example.sept1ejemplo.databinding.ActivityDosBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
 class ActivityDos : AppCompatActivity() {
 
     private lateinit var binding: ActivityDosBinding
+    private lateinit var database: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDosBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        database = AppDatabase.getDatabase(this)
+
         // Obtener los datos del Intent
         val nombresApellidos = intent.getStringExtra("NOMBRES_APELLIDOS") ?: ""
         val nota = intent.getStringExtra("NOTA") ?: ""
+        val asignatura = intent.getStringExtra("ASIGNATURA") ?: ""
         val timestamp = intent.getLongExtra("TIMESTAMP", 0L)
-        val registroId = intent.getIntExtra("REGISTRO_ID", -1) // Recibir el ID del registro
-        val signatureSize = intent.getIntExtra("SIGNATURE_SIZE", 0) // Tamaño de la firma en Base64
+        val registroId = intent.getIntExtra("REGISTRO_ID", -1)
+        val signatureSize = intent.getIntExtra("SIGNATURE_SIZE", 0)
 
         val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
         val date = Date(timestamp)
 
-        // Mostrar el mensaje con el ID del registro y el tamaño de la firma
+        // Mostrar el mensaje con el ID del registro, el tamaño de la firma y la asignatura
         binding.textViewMensaje.text = "Se registró correctamente en la base de datos, " +
                 "se creó el documento .pdf del registro correspondiente (Registro #$registroId). " +
-                "Tamaño de la firma: $signatureSize bytes."
+                "Tamaño de la firma: $signatureSize bytes. " +
+                "Asignatura: $asignatura"
 
         binding.buttonVolverMain.setOnClickListener {
             finish()
@@ -228,9 +270,18 @@ class ActivityDos : AppCompatActivity() {
         binding.buttonIrTres.setOnClickListener {
             startActivity(Intent(this, ActivityTres::class.java))
         }
+
+        // Cargar y mostrar el nombre del docente
+        lifecycleScope.launch {
+            val docente = withContext(Dispatchers.IO) {
+                database.registroDao().getDocente()
+            }
+            docente?.let {
+                binding.textViewDocenteName.text = "Docente: ${it.nombreCompleto}"
+            }
+        }
     }
 }
-
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/ActivityTres.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
@@ -268,6 +319,16 @@ class ActivityTres : AppCompatActivity() {
 
         // Cargar y mostrar los registros con sus índices
         cargarRegistros()
+
+        // Cargar y mostrar el nombre del docente
+        lifecycleScope.launch {
+            val docente = withContext(Dispatchers.IO) {
+                database.registroDao().getDocente()
+            }
+            docente?.let {
+                binding.textViewDocenteName.text = "Docente: ${it.nombreCompleto}"
+            }
+        }
     }
 
     private fun cargarRegistros() {
@@ -281,6 +342,7 @@ class ActivityTres : AppCompatActivity() {
             val registrosText = registros.joinToString("\n\n") { registro ->
                 "Registro #${registro.id}\n" +  // Mostrar el ID del registro
                         "Nombres y Apellidos: ${registro.nombresApellidos}\n" +
+                        "Asignatura: ${registro.asignatura}\n" +
                         "Nota: ${registro.nota}\n" +
                         "Fecha: ${dateFormat.format(Date(registro.timestamp))}"
             }
@@ -309,7 +371,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.util.*
 import com.example.sept1ejemplo.util.PdfGenerator
 
 class FirmaActivity : AppCompatActivity() {
@@ -327,6 +388,7 @@ class FirmaActivity : AppCompatActivity() {
 
         val nombre = intent.getStringExtra("nombre") ?: ""
         val nota = intent.getStringExtra("nota") ?: ""
+        val asignatura = intent.getStringExtra("asignatura") ?: ""
 
         // Configurar el listener para el SignaturePad
         binding.signaturePad.setOnSignedListener(object : com.github.gcacace.signaturepad.views.SignaturePad.OnSignedListener {
@@ -356,7 +418,7 @@ class FirmaActivity : AppCompatActivity() {
             // Obtener el nombre del docente desde la base de datos y generar PDF
             obtenerNombreDocente { nombreDocente ->
                 if (nombreDocente != null) {
-                    saveSignature(croppedSignature, nombreDocente)
+                    saveSignature(croppedSignature, nombreDocente, nombre, nota, asignatura)
                 } else {
                     Toast.makeText(this, "Error: Docente no registrado", Toast.LENGTH_SHORT).show()
                 }
@@ -366,19 +428,6 @@ class FirmaActivity : AppCompatActivity() {
         // Botón Limpiar
         binding.btnLimpiar.setOnClickListener {
             binding.signaturePad.clear()
-        }
-    }
-
-    private fun obtenerNombreDocente(callback: (String?) -> Unit) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val docente = database.registroDao().getDocente()
-            withContext(Dispatchers.Main) {
-                if (docente != null) {
-                    callback(docente.nombreCompleto) // Nombre del docente obtenido
-                } else {
-                    callback(null)
-                }
-            }
         }
     }
 
@@ -426,19 +475,31 @@ class FirmaActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveSignature(signatureBitmap: Bitmap, nombreDocente: String) {
+    private fun obtenerNombreDocente(callback: (String?) -> Unit) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val docente = database.registroDao().getDocente()
+            withContext(Dispatchers.Main) {
+                if (docente != null) {
+                    callback(docente.nombreCompleto)
+                } else {
+                    callback(null)
+                }
+            }
+        }
+    }
+
+    private fun saveSignature(signatureBitmap: Bitmap, nombreDocente: String, nombre: String, nota: String, asignatura: String) {
         val stream = ByteArrayOutputStream()
         signatureBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val signatureBytes = stream.toByteArray()
         val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
 
         val timestamp = System.currentTimeMillis()
-        val nombre = intent.getStringExtra("nombre") ?: ""
-        val nota = intent.getStringExtra("nota") ?: ""
 
         val registro = RegistroEntity(
             nombresApellidos = nombre,
             nota = nota,
+            asignatura = asignatura,
             timestamp = timestamp,
             firmaBase64 = signatureBase64
         )
@@ -447,13 +508,14 @@ class FirmaActivity : AppCompatActivity() {
             val registroId = database.registroDao().insertRegistro(registro)
             val updatedRegistro = registro.copy(id = registroId.toInt())
 
-            // Generar el PDF pasando el nombre del docente
+            // Generar el PDF pasando el nombre del docente y la asignatura
             val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap, nombreDocente)
 
             launch(Dispatchers.Main) {
                 val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
                     putExtra("NOMBRES_APELLIDOS", nombre)
                     putExtra("NOTA", nota)
+                    putExtra("ASIGNATURA", asignatura)
                     putExtra("TIMESTAMP", timestamp)
                     putExtra("REGISTRO_ID", registroId.toInt())
                     putExtra("SIGNATURE_SIZE", signatureBase64.toByteArray().size)
@@ -464,7 +526,137 @@ class FirmaActivity : AppCompatActivity() {
         }
     }
 }
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/RegistrosActivity.kt
+-----------------------------------------------------
 
+package com.example.sept1ejemplo
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.database.RegistroEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class RegistrosActivity : AppCompatActivity() {
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var adapter: RegistrosAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_registros)
+
+        recyclerView = findViewById(R.id.recyclerViewRegistros)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        adapter = RegistrosAdapter(emptyList())
+        recyclerView.adapter = adapter
+
+        cargarRegistros()
+    }
+
+    private fun cargarRegistros() {
+        GlobalScope.launch(Dispatchers.IO) {
+            val database = AppDatabase.getDatabase(this@RegistrosActivity)
+            val registros = database.registroDao().getAllRegistros()
+            withContext(Dispatchers.Main) {
+                adapter.actualizarRegistros(registros)
+            }
+        }
+    }
+}
+
+class RegistrosAdapter(private var registros: List<RegistroEntity>) : RecyclerView.Adapter<RegistrosAdapter.RegistroViewHolder>() {
+    class RegistroViewHolder(view: android.view.View) : RecyclerView.ViewHolder(view) {
+        // TODO: Definir los elementos de la vista para cada item
+    }
+
+    override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): RegistroViewHolder {
+        val view = android.view.LayoutInflater.from(parent.context).inflate(R.layout.item_registro, parent, false)
+        return RegistroViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: RegistroViewHolder, position: Int) {
+        val registro = registros[position]
+        // TODO: Configurar los elementos de la vista con los datos del registro
+    }
+
+    override fun getItemCount() = registros.size
+
+    fun actualizarRegistros(nuevosRegistros: List<RegistroEntity>) {
+        registros = nuevosRegistros
+        notifyDataSetChanged()
+    }
+}
+
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/RegistroDocente.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo
+
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.sept1ejemplo.database.AppDatabase
+import com.example.sept1ejemplo.database.AsignaturaEntity
+import com.example.sept1ejemplo.database.DocenteEntity
+import com.example.sept1ejemplo.databinding.ActivityRegistroDocenteBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class RegistroDocente : AppCompatActivity() {
+
+    private lateinit var binding: ActivityRegistroDocenteBinding
+    private lateinit var database: AppDatabase
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityRegistroDocenteBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        database = AppDatabase.getDatabase(this)
+
+        binding.btnRegistrar.setOnClickListener {
+            val nombreCompleto = binding.etNombreCompleto.text.toString()
+            val asignaturas = binding.etAsignaturas.text.toString().split(",").map { it.trim() }
+
+            if (nombreCompleto.isNotEmpty() && asignaturas.isNotEmpty()) {
+                registrarDocente(nombreCompleto, asignaturas)
+            } else {
+                Toast.makeText(this, "Por favor, complete todos los campos", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun registrarDocente(nombreCompleto: String, asignaturas: List<String>) {
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val docenteId = database.registroDao().insertDocente(DocenteEntity(nombreCompleto = nombreCompleto))
+
+                    asignaturas.forEach { asignatura ->
+                        database.registroDao().insertAsignatura(AsignaturaEntity(nombre = asignatura, docenteId = docenteId.toInt()))
+                    }
+                }
+
+                Toast.makeText(this@RegistroDocente, "Docente y asignaturas registrados con éxito", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this@RegistroDocente, MainActivity::class.java)
+                startActivity(intent)
+                finish()
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@RegistroDocente, "Error al registrar: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+}
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/AppDatabase.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo.database
@@ -474,7 +666,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [RegistroEntity::class, DocenteEntity::class], version = 3, exportSchema = false)
+@Database(entities = [RegistroEntity::class, DocenteEntity::class, AsignaturaEntity::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun registroDao(): RegistroDao
 
@@ -488,39 +680,49 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "app_database"
-                ).fallbackToDestructiveMigration().build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
         }
     }
 }
-
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/RegistroDao.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo.database
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
+import androidx.room.*
 
 @Dao
 interface RegistroDao {
-    // Consultas para la tabla de registros
+    // Existing queries...
+
     @Query("SELECT * FROM registros ORDER BY timestamp DESC")
     suspend fun getAllRegistros(): List<RegistroEntity>
 
     @Insert
     suspend fun insertRegistro(registro: RegistroEntity): Long
 
-    // Consultas para la tabla de docente
+    // Docente related queries
     @Query("SELECT * FROM docente LIMIT 1")
     suspend fun getDocente(): DocenteEntity?
 
     @Insert
-    suspend fun insertDocente(docente: DocenteEntity)
-}
+    suspend fun insertDocente(docente: DocenteEntity): Long
 
+    // Asignatura related queries
+    @Insert
+    suspend fun insertAsignatura(asignatura: AsignaturaEntity): Long
+
+    @Query("SELECT * FROM asignaturas WHERE docenteId = :docenteId")
+    suspend fun getAsignaturasForDocente(docenteId: Int): List<AsignaturaEntity>
+
+    @Transaction
+    @Query("SELECT * FROM docente")
+    suspend fun getDocenteWithAsignaturas(): List<DocenteWithAsignaturas>
+}
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/RegistroEntity.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo.database
@@ -533,9 +735,61 @@ data class RegistroEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nombresApellidos: String,
     val nota: String,
+    val asignatura: String,  // Nuevo campo
     val timestamp: Long,
     val firmaBase64: String? = null,
 )
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/AsignaturaEntity.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.database
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.ForeignKey
+
+@Entity(
+    tableName = "asignaturas",
+    foreignKeys = [ForeignKey(
+        entity = DocenteEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["docenteId"],
+        onDelete = ForeignKey.CASCADE
+    )]
+)
+data class AsignaturaEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val nombre: String,
+    val docenteId: Int
+)
+
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/DocenteEntity.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.database
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "docente")
+data class DocenteEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val nombreCompleto: String
+)
+Archivo: ./app/src/main/java/com/example/sept1ejemplo/database/DocenteWithAsignaturas.kt
+-----------------------------------------------------
+package com.example.sept1ejemplo.database
+
+import androidx.room.Embedded
+import androidx.room.Relation
+
+data class DocenteWithAsignaturas(
+    @Embedded val docente: DocenteEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "docenteId"
+    )
+    val asignaturas: List<AsignaturaEntity>
+)
+
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/util/PdfGenerator.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo.util
@@ -558,17 +812,18 @@ import java.util.*
 
 object PdfGenerator {
 
-    fun generatePdfFileName(nombresApellidos: String, timestamp: Long): String {
-        val words = nombresApellidos.split(" ")
+    fun generatePdfFileName(registro: RegistroEntity): String {
+        val words = registro.nombresApellidos.split(" ")
         val abbreviation = words.joinToString("_") { word ->
-            word.take(3).capitalize(Locale.getDefault()) }
+            word.take(3).capitalize(Locale.getDefault())
+        }
         val dateFormat = SimpleDateFormat("dd-MMM-HH-mm", Locale.getDefault())
-        val formattedTimestamp = dateFormat.format(Date(timestamp))
-        return "Reg_${abbreviation}_$formattedTimestamp.pdf"
+        val formattedTimestamp = dateFormat.format(Date(registro.timestamp))
+        return "Reg${registro.id}_${abbreviation}_$formattedTimestamp.pdf"
     }
 
     fun generatePdf(context: Context, registro: RegistroEntity, signatureBitmap: Bitmap, nombreDocente: String): File {
-        val fileName = generatePdfFileName(registro.nombresApellidos, registro.timestamp)
+        val fileName = generatePdfFileName(registro)
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val file = File(downloadsDir, fileName)
 
@@ -590,8 +845,9 @@ object PdfGenerator {
 
                     // Añadir datos al PDF
                     document.add(Paragraph("Registro #${registro.id}"))
-                    document.add(Paragraph("Docente: $nombreDocente"))  // Aquí se pasa el nombre del docente
-                    document.add(Paragraph("Nombres y Apellidos: ${registro.nombresApellidos}"))
+                    document.add(Paragraph("Docente: $nombreDocente"))
+                    document.add(Paragraph("Asignatura: ${registro.asignatura}"))
+
                     document.add(Paragraph("Nota: ${registro.nota}"))
 
                     // Convertir la firma a imagen y agregarla al PDF
@@ -601,7 +857,7 @@ object PdfGenerator {
                     val signatureImage = Image(ImageDataFactory.create(signatureBytes))
                     signatureImage.scaleToFit(100f, 100f)
                     document.add(signatureImage)
-
+                    document.add(Paragraph("Estudiante: ${registro.nombresApellidos}"))
                     // Añadir fecha y hora
                     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
                     val date = Date(registro.timestamp)
@@ -612,7 +868,6 @@ object PdfGenerator {
         return file
     }
 }
-
 Archivo: ./app/src/main/res/layout/activity_main.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>
@@ -646,47 +901,22 @@ Archivo: ./app/src/main/res/layout/activity_main.xml
             android:orientation="vertical"
             android:padding="16dp">
 
-            <EditText
-                android:id="@+id/editTextNombre"
+            <TextView
+                android:id="@+id/textViewDocenteName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Nombre completo" />
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="16dp"/>
 
-            <EditText
-                android:id="@+id/editTextNota"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Nota"
-                android:layout_marginTop="16dp" />
-
-            <Button
-                android:id="@+id/btnLimpiar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Limpiar"
-                android:layout_marginTop="16dp" />
-
-            <Button
-                android:id="@+id/btnFirmar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Firmar"
-                android:layout_marginTop="8dp" />
-
-            <!-- Nuevo botón para ir a ActivityTres -->
-            <Button
-                android:id="@+id/btnIrActivityTres"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Registros"
-                android:layout_marginTop="8dp" />
+            <!-- Resto del contenido sin cambios -->
 
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
 Archivo: ./app/src/main/res/layout/activity_dos.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>
@@ -699,11 +929,23 @@ Archivo: ./app/src/main/res/layout/activity_dos.xml
     tools:context=".ActivityDos">
 
     <TextView
+        android:id="@+id/textViewDocenteName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_margin="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
         android:id="@+id/textViewMensaje"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Se registró correctamente en la base de datos, y se creó el documento .pdf del registro correspondiente."
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewDocenteName"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_margin="16dp"
@@ -730,7 +972,6 @@ Archivo: ./app/src/main/res/layout/activity_dos.xml
         android:layout_marginTop="16dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
 Archivo: ./app/src/main/res/layout/activity_tres.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>
@@ -742,17 +983,27 @@ Archivo: ./app/src/main/res/layout/activity_tres.xml
     android:layout_height="match_parent"
     tools:context=".ActivityTres">
 
-    <!-- ScrollView para hacer la lista de registros desplazable si es larga -->
+    <TextView
+        android:id="@+id/textViewDocenteName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_margin="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewDocenteName"
         app:layout_constraintBottom_toTopOf="@id/buttonVolverMain"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_margin="16dp">
 
-        <!-- TextView donde se mostrarán los registros cargados desde la base de datos -->
         <TextView
             android:id="@+id/textViewRegistros"
             android:layout_width="match_parent"
@@ -762,7 +1013,6 @@ Archivo: ./app/src/main/res/layout/activity_tres.xml
             android:padding="16dp"/>
     </ScrollView>
 
-    <!-- Botón para volver a la pantalla principal (MainActivity) -->
     <Button
         android:id="@+id/buttonVolverMain"
         android:layout_width="wrap_content"
@@ -773,7 +1023,6 @@ Archivo: ./app/src/main/res/layout/activity_tres.xml
         app:layout_constraintEnd_toStartOf="@id/buttonCerrar"
         android:layout_margin="16dp"/>
 
-    <!-- Botón para cerrar la aplicación -->
     <Button
         android:id="@+id/buttonCerrar"
         android:layout_width="wrap_content"
@@ -826,6 +1075,77 @@ Archivo: ./app/src/main/res/layout/activity_firma.xml
 
 </LinearLayout>
 
+Archivo: ./app/src/main/res/layout/item_registro.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/textViewRegistro"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Registro"
+        android:textSize="16sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/buttonGenerarPdf"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Generar PDF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+Archivo: ./app/src/main/res/layout/activity_registro_docente.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etNombreCompleto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nombre completo del docente"
+        android:inputType="textPersonName" />
+
+    <EditText
+        android:id="@+id/etAsignaturas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Asignaturas (separadas por comas)"
+        android:inputType="textMultiLine" />
+
+    <Button
+        android:id="@+id/btnRegistrar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Registrar" />
+
+</LinearLayout>
+Archivo: ./app/src/main/res/layout/activity_registros.xml
+-----------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/recyclerViewRegistros"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp" />
+
 Archivo: ./app/src/main/res/values/strings.xml
 -----------------------------------------------------
 <resources>
@@ -861,5 +1181,3 @@ Archivo: ./app/src/main/res/values/themes.xml
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
     </style>
 </resources>
-
-//sept 28 1757
