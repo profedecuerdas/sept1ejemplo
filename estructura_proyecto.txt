@@ -129,37 +129,33 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
 import com.example.sept1ejemplo.database.AsignaturaEntity
+import com.example.sept1ejemplo.databinding.ActivityMainBinding
 import com.google.android.material.appbar.MaterialToolbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding  // Usamos View Binding
     private lateinit var database: AppDatabase
-    private lateinit var editTextNombre: EditText
-    private lateinit var editTextNota: EditText
-    private lateinit var spinnerAsignaturas: Spinner
     private lateinit var asignaturas: List<AsignaturaEntity>
-    private lateinit var textViewDocenteName: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         database = AppDatabase.getDatabase(this)
 
         Log.d("MainActivity", "onCreate: Actividad principal iniciada")
-        val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
+        val toolbar: MaterialToolbar = binding.toolbar
         toolbar.title = getString(R.string.app_name)
 
-        editTextNombre = findViewById(R.id.editTextNombre)
-        editTextNota = findViewById(R.id.editTextNota)
-        spinnerAsignaturas = findViewById(R.id.spinnerAsignaturas)
-        textViewDocenteName = findViewById(R.id.textViewDocenteName)
-
-        val btnLimpiar: Button = findViewById(R.id.btnLimpiar)
-        val btnFirmar: Button = findViewById(R.id.btnFirmar)
-        val btnIrActivityTres: Button = findViewById(R.id.btnIrActivityTres)
+        // Inicializar componentes con View Binding
+        val btnLimpiar: Button = binding.btnLimpiar
+        val btnFirmar: Button = binding.btnFirmar
+        val btnIrActivityTres: Button = binding.btnIrActivityTres
 
         lifecycleScope.launch {
             checkDocenteAndLoadAsignaturas()
@@ -167,17 +163,17 @@ class MainActivity : AppCompatActivity() {
 
         btnLimpiar.setOnClickListener {
             Log.d("MainActivity", "btnLimpiar: Limpiando campos")
-            editTextNombre.text.clear()
-            editTextNota.text.clear()
-            spinnerAsignaturas.setSelection(0)
+            binding.editTextNombre.text.clear()
+            binding.editTextNota.text.clear()
+            binding.spinnerAsignaturas.setSelection(0)
         }
 
         btnFirmar.setOnClickListener {
             Log.d("MainActivity", "btnFirmar: Iniciando FirmaActivity")
             val intent = Intent(this, FirmaActivity::class.java)
-            intent.putExtra("nombre", editTextNombre.text.toString())
-            intent.putExtra("nota", editTextNota.text.toString())
-            intent.putExtra("asignatura", spinnerAsignaturas.selectedItem.toString())
+            intent.putExtra("nombre", binding.editTextNombre.text.toString())
+            intent.putExtra("nota", binding.editTextNota.text.toString())
+            intent.putExtra("asignatura", binding.spinnerAsignaturas.selectedItem.toString())
             startActivity(intent)
         }
 
@@ -193,14 +189,12 @@ class MainActivity : AppCompatActivity() {
             database.registroDao().getDocente()
         }
         if (docente == null) {
-            // Si no existe, redirigir a la actividad RegistroDocente
             val intent = Intent(this@MainActivity, RegistroDocente::class.java)
             startActivity(intent)
             finish()
         } else {
-            // Si existe, mostrar el nombre del docente y cargar las asignaturas
             withContext(Dispatchers.Main) {
-                textViewDocenteName.text = "Docente: ${docente.nombreCompleto}"
+                binding.textViewDocenteName.text = "Docente: ${docente.nombreCompleto}"
             }
             loadAsignaturas(docente.id)
         }
@@ -214,10 +208,11 @@ class MainActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, asignaturasNombres)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         withContext(Dispatchers.Main) {
-            spinnerAsignaturas.adapter = adapter
+            binding.spinnerAsignaturas.adapter = adapter
         }
     }
 }
+
 Archivo: ./app/src/main/java/com/example/sept1ejemplo/ActivityDos.kt
 -----------------------------------------------------
 package com.example.sept1ejemplo
@@ -901,6 +896,7 @@ Archivo: ./app/src/main/res/layout/activity_main.xml
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- TextView para el nombre del docente -->
             <TextView
                 android:id="@+id/textViewDocenteName"
                 android:layout_width="match_parent"
@@ -908,15 +904,64 @@ Archivo: ./app/src/main/res/layout/activity_main.xml
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:gravity="center"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="16dp" />
 
-            <!-- Resto del contenido sin cambios -->
+            <EditText
+                android:id="@+id/elijeAsignatura"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ems="10"
+                android:inputType="text"
+                android:text="Asignatura:" />
+
+            <Spinner
+                android:id="@+id/spinnerAsignaturas"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- EditText para el nombre del estudiante -->
+
+            <EditText
+                android:id="@+id/editTextNombre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Nombre y grado del estudiante" />
+
+            <!-- EditText para la nota del estudiante -->
+            <EditText
+                android:id="@+id/editTextNota"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Observación" />
+
+            <!-- Spinner para asignaturas -->
+
+
+            <!-- Botones -->
+            <Button
+                android:id="@+id/btnLimpiar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Limpiar" />
+
+            <Button
+                android:id="@+id/btnFirmar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Firmar" />
+
+            <Button
+                android:id="@+id/btnIrActivityTres"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Registros" />
 
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
 Archivo: ./app/src/main/res/layout/activity_dos.xml
 -----------------------------------------------------
 <?xml version="1.0" encoding="utf-8"?>

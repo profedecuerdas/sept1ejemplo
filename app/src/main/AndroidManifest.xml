@@ -26,7 +26,7 @@
         <activity android:name=".RegistroDocente" />
         <activity android:name=".FirmaActivity" />
         <activity android:name=".RegistrosActivity" />
-        <activity android:name=".ActivityDos" />
-        <activity android:name=".ActivityTres" />
+        <activity android:name=".MensajeExito" />
+        <activity android:name=".ActivityMuestraRegistros" />
     </application>
 </manifest>

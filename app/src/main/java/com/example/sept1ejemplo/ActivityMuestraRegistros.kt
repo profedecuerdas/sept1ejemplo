@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ActivityTres : AppCompatActivity() {
+class ActivityMuestraRegistros : AppCompatActivity() {
 
     private lateinit var binding: ActivityTresBinding
     private lateinit var database: AppDatabase

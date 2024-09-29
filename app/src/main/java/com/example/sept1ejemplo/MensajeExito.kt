@@ -6,13 +6,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
 import com.example.sept1ejemplo.databinding.ActivityDosBinding
+import com.example.sept1ejemplo.util.PdfGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ActivityDos : AppCompatActivity() {
+class MensajeExito : AppCompatActivity() {
 
     private lateinit var binding: ActivityDosBinding
     private lateinit var database: AppDatabase
@@ -35,9 +36,21 @@ class ActivityDos : AppCompatActivity() {
         val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
         val date = Date(timestamp)
 
-        // Mostrar el mensaje con el ID del registro, el tamaño de la firma y la asignatura
+        // Generar el nombre del archivo PDF
+        val pdfFileName = PdfGenerator.generatePdfFileName(
+            com.example.sept1ejemplo.database.RegistroEntity(
+                id = registroId,
+                nombresApellidos = nombresApellidos,
+                nota = nota,
+                asignatura = asignatura,
+                timestamp = timestamp
+            )
+        )
+
+        // Mostrar el mensaje con el ID del registro, el tamaño de la firma, la asignatura y el nombre del archivo PDF
         binding.textViewMensaje.text = "Se registró correctamente en la base de datos, " +
-                "se creó el documento .pdf del registro correspondiente (Registro #$registroId). " +
+                "y se creó el documento $pdfFileName en la carpeta de descargas del dispositivo " +
+                "(Registro #$registroId). " +
                 "Tamaño de la firma: $signatureSize bytes. " +
                 "Asignatura: $asignatura"
 
@@ -46,7 +59,7 @@ class ActivityDos : AppCompatActivity() {
         }
 
         binding.buttonIrTres.setOnClickListener {
-            startActivity(Intent(this, ActivityTres::class.java))
+            startActivity(Intent(this, ActivityMuestraRegistros::class.java))
         }
 
         // Cargar y mostrar el nombre del docente

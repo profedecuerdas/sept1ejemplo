@@ -5,9 +5,6 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.EditText
-import android.widget.Spinner
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.sept1ejemplo.database.AppDatabase
@@ -62,7 +59,7 @@ class MainActivity : AppCompatActivity() {
 
         btnIrActivityTres.setOnClickListener {
             Log.d("MainActivity", "btnIrActivityTres: Iniciando ActivityTres")
-            val intent = Intent(this, ActivityTres::class.java)
+            val intent = Intent(this, ActivityMuestraRegistros::class.java)
             startActivity(intent)
         }
     }

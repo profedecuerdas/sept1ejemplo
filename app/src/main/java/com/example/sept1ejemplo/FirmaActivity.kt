@@ -156,7 +156,7 @@ class FirmaActivity : AppCompatActivity() {
             val pdfFile = PdfGenerator.generatePdf(this@FirmaActivity, updatedRegistro, signatureBitmap, nombreDocente)
 
             launch(Dispatchers.Main) {
-                val intent = Intent(this@FirmaActivity, ActivityDos::class.java).apply {
+                val intent = Intent(this@FirmaActivity, MensajeExito::class.java).apply {
                     putExtra("NOMBRES_APELLIDOS", nombre)
                     putExtra("NOTA", nota)
                     putExtra("ASIGNATURA", asignatura)

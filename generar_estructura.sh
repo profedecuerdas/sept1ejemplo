@@ -7,8 +7,8 @@ FILES=(
     "./build.gradle.kts"
     "./app/build.gradle.kts"
     "./app/src/main/java/com/example/sept1ejemplo/MainActivity.kt"
-    "./app/src/main/java/com/example/sept1ejemplo/ActivityDos.kt"
-    "./app/src/main/java/com/example/sept1ejemplo/ActivityTres.kt"
+    "./app/src/main/java/com/example/sept1ejemplo/MensajeExito.kt"
+    "./app/src/main/java/com/example/sept1ejemplo/ActivityMuestraRegistros.kt"
     "./app/src/main/java/com/example/sept1ejemplo/FirmaActivity.kt"
     "./app/src/main/java/com/example/sept1ejemplo/RegistrosActivity.kt"  # Nuevo archivo
     "./app/src/main/java/com/example/sept1ejemplo/RegistroDocente.kt"    # Nuevo archivo
